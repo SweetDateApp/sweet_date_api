@@ -1,0 +1,7 @@
+django>=4.2,<5.0
+djangorestframework>=3.14
+django-cors-headers>=4.0
+djangorestframework-simplejwt>=5.3
+psycopg2-binary>=2.9
+python-environ>=0.4
+gunicorn>=21.0
