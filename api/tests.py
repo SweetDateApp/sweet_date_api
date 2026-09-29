@@ -5,12 +5,18 @@ import tempfile
 from django.core import mail
 from django.test import override_settings
 from PIL import Image
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase as BaseAPITestCase
 
 from .models import DatePlan, User
 
 PASSWORD = "Sweet-Test-2026!"
 MEDIA_ROOT = tempfile.mkdtemp()
+
+
+# Avec DEBUG=false (CI, prod), SECURE_SSL_REDIRECT redirige les requêtes HTTP du client de test en 301.
+@override_settings(SECURE_SSL_REDIRECT=False)
+class APITestCase(BaseAPITestCase):
+    pass
 
 
 def make_user(username="alice", **extra):
