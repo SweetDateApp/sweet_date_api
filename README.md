@@ -1,7 +1,7 @@
 # Sweet Date — Backend Django + PostgreSQL
 
 ## Stack
-- **Django 4.2** + **Django REST Framework**
+- **Django 5.2 LTS** + **Django REST Framework** (Python 3.12+)
 - **PostgreSQL** (base de données)
 - **JWT** (authentification via `djangorestframework-simplejwt`)
 - **Gmail SMTP** (envoi des invitations romantiques)
@@ -36,6 +36,23 @@ python manage.py migrate
 python manage.py createsuperuser   # optionnel
 python manage.py runserver
 ```
+
+### 5. Tests
+```bash
+python manage.py test
+```
+L'utilisateur PostgreSQL doit pouvoir créer la base de test (`ALTER USER sweetdate_user CREATEDB;`).
+
+## Déploiement (Render)
+
+| Réglage | Valeur |
+|---------|--------|
+| Build command | `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate` |
+| Start command | `gunicorn sweetdate_backend.wsgi:application` |
+| Variables | `DEBUG=false`, `SECRET_KEY`, `DATABASE_URL`, `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`, `EMAIL_*` |
+| Avatars | `SERVE_MEDIA=true` + `MEDIA_ROOT` sur un disque persistant Render (sinon les fichiers sont perdus à chaque déploiement) |
+
+Le déploiement est déclenché par GitHub Actions (voir `CONTRIBUTING.md`).
 
 ## API Endpoints
 
@@ -87,6 +104,7 @@ users
 ├── id, username, password
 ├── email_partner1  (email du 1er partenaire)
 ├── email_partner2  (email du 2ème partenaire)
+├── avatar          (image, optionnelle)
 └── created_at
 
 date_plans
