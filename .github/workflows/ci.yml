@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [preprod, prod]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  branch-policy:
+    name: Branch policy
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Only preprod can be merged into prod
+        if: github.base_ref == 'prod' && github.head_ref != 'preprod'
+        run: |
+          echo "::error::Les PR vers 'prod' doivent venir de 'preprod' (reçu : '${{ github.head_ref }}')."
+          exit 1
+      - run: echo "OK — ${{ github.head_ref }} -> ${{ github.base_ref }}"
+
+  test:
+    name: Django checks & tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sweetdate_test
+          POSTGRES_USER: sweetdate
+          POSTGRES_PASSWORD: sweetdate
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sweetdate"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      SECRET_KEY: ci-insecure-secret-key
+      DEBUG: "false"
+      ALLOWED_HOSTS: localhost,127.0.0.1
+      DB_NAME: sweetdate_test
+      DB_USER: sweetdate
+      DB_PASSWORD: sweetdate
+      DB_HOST: localhost
+      DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Django system checks
+        run: python manage.py check --deploy --fail-level ERROR
+
+      - name: Migrations are up to date
+        run: python manage.py makemigrations --check --dry-run
+
+      - name: Run tests
+        run: python manage.py test --verbosity 2

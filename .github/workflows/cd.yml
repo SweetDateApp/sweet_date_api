@@ -1,0 +1,34 @@
+name: CD
+
+# preprod -> environnement GitHub "preprod"    -> service Render de préproduction
+# prod    -> environnement GitHub "production" -> service Render de production
+on:
+  push:
+    branches: [preprod, prod]
+  workflow_dispatch:
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to Render (${{ github.ref_name }})
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'prod' && 'production' || 'preprod' }}
+
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::error::Secret RENDER_DEPLOY_HOOK_URL manquant dans l'environnement GitHub."
+            exit 1
+          fi
+          curl --fail --silent --show-error -X POST "${RENDER_DEPLOY_HOOK_URL}&ref=${GITHUB_SHA}"
+
