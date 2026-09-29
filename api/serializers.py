@@ -28,7 +28,25 @@ class RegisterSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model  = User
-        fields = ["id", "username", "email_partner1", "email_partner2", "created_at"]
+        fields = ["id", "username", "email_partner1", "email_partner2", "avatar", "created_at"]
+
+class UpdateProfileSerializer(serializers.ModelSerializer):
+    """PATCH /api/auth/me/ — modifier nom, emails, avatar"""
+    class Meta:
+        model  = User
+        fields = ["username", "email_partner1", "email_partner2", "avatar"]
+        extra_kwargs = {
+            "username":       {"required": False},
+            "email_partner1": {"required": False},
+            "email_partner2": {"required": False},
+            "avatar":         {"required": False},
+        }
+
+    def validate_username(self, value):
+        user = self.instance
+        if User.objects.exclude(pk=user.pk).filter(username=value).exists():
+            raise serializers.ValidationError("Ce nom d'utilisateur est déjà pris.")
+        return value
 
 
 class DateActivitySerializer(serializers.ModelSerializer):

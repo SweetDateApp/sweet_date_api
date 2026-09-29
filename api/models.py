@@ -28,6 +28,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     username        = models.CharField(max_length=150, unique=True)
     email_partner1  = models.EmailField(help_text="Email du 1er partenaire")
     email_partner2  = models.EmailField(help_text="Email du 2eme partenaire")
+    avatar          = models.ImageField(upload_to="avatars/", null=True, blank=True)
     is_active       = models.BooleanField(default=True)
     is_staff        = models.BooleanField(default=False)
     created_at      = models.DateTimeField(auto_now_add=True)

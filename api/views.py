@@ -5,7 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, DatePlan
-from .serializers import RegisterSerializer, UserSerializer, DatePlanSerializer
+from .serializers import RegisterSerializer, UserSerializer, UpdateProfileSerializer, DatePlanSerializer
 from .emails import send_invitation_emails
 
 
@@ -72,12 +72,25 @@ class LoginView(APIView):
 
 
 class MeView(generics.RetrieveUpdateAPIView):
-    """GET/PATCH /api/auth/me/  — Profil de l'utilisateur connecté"""
-    serializer_class = UserSerializer
+    """GET /api/auth/me/       — Profil de l'utilisateur connecté
+       PATCH /api/auth/me/     — Modifier nom, emails, avatar (multipart/form-data pour avatar)"""
     permission_classes = [permissions.IsAuthenticated]
 
     def get_object(self):
         return self.request.user
+
+    def get_serializer_class(self):
+        if self.request.method in ("PATCH", "PUT"):
+            return UpdateProfileSerializer
+        return UserSerializer
+
+    def update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(UserSerializer(user, context={"request": request}).data)
 
 
 # ─── DatePlan ────────────────────────────────────────────────────────────────
