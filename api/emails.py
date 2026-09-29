@@ -1,7 +1,14 @@
-from django.core.mail import EmailMultiAlternatives
+import logging
+from html import escape
+
 from django.conf import settings
+from django.core.mail import EmailMultiAlternatives, get_connection
 from django.utils import timezone
+from django.utils.formats import date_format, time_format
+
 from .models import DatePlan, ACTIVITY_CHOICES
+
+logger = logging.getLogger(__name__)
 
 ACTIVITY_LABELS = dict(ACTIVITY_CHOICES)
 
@@ -30,9 +37,11 @@ def build_invitation_html(plan: DatePlan, recipient_name: str) -> str:
         for a in acts
     ) or "<li>À définir ensemble 💕</li>"
 
-    date_str = plan.date.strftime("%A %d %B %Y").capitalize()
-    time_str = plan.time.strftime("%H:%M") if plan.time else "Heure à confirmer"
-    loc_str  = plan.location if plan.location else "Lieu surprise 🗺️"
+    date_str = date_format(plan.date, "l j F Y").capitalize()
+    time_str = time_format(plan.time, "H:i") if plan.time else "Heure à confirmer"
+    loc_str  = escape(plan.location) if plan.location else "Lieu surprise 🗺️"
+    username = escape(user.username)
+    recipient_name = escape(recipient_name)
     exc_str  = f"{plan.excitement}% — {_excitement_label(plan.excitement)}"
 
     return f"""
@@ -71,7 +80,7 @@ def build_invitation_html(plan: DatePlan, recipient_name: str) -> str:
     <div class="body">
       <p class="greeting">Bonjour {recipient_name} !</p>
       <p style="color:#666;font-size:15px;line-height:1.6;margin-bottom:28px;">
-        {user.username} vous invite à un rendez-vous romantique. Voici tous les détails établis ensemble 💕
+        {username} vous invite à un rendez-vous romantique. Voici tous les détails établis ensemble 💕
       </p>
 
       <div class="card">
@@ -113,37 +122,33 @@ def send_invitation_emails(plan: DatePlan) -> bool:
     Retourne True si envoi réussi.
     """
     user = plan.user
-    subject = f"💗 Sweet Date — Votre rendez-vous du {plan.date.strftime('%d/%m/%Y')}"
+    subject = f"💗 Sweet Date — Votre rendez-vous du {date_format(plan.date, 'd/m/Y')}"
+    date_str = date_format(plan.date, "l j F Y")
+    time_str = time_format(plan.time, "H:i") if plan.time else "heure à confirmer"
 
-    recipients = [
-        (user.email_partner1, user.email_partner1.split("@")[0].capitalize()),
-        (user.email_partner2, user.email_partner2.split("@")[0].capitalize()),
-    ]
+    messages = []
+    for email_addr in (user.email_partner1, user.email_partner2):
+        name = email_addr.split("@")[0].capitalize()
+        text_content = (
+            f"Sweet Date — Invitation romantique\n\n"
+            f"Bonjour {name} !\n"
+            f"{user.username} vous invite à un rendez-vous le {date_str} à {time_str}.\n"
+            f"Lieu : {plan.location or 'Surprise'}\n"
+            f"Niveau d'excitation : {plan.excitement}%\n"
+        )
+        msg = EmailMultiAlternatives(subject=subject, body=text_content,
+                                     from_email=settings.DEFAULT_FROM_EMAIL, to=[email_addr])
+        msg.attach_alternative(build_invitation_html(plan, name), "text/html")
+        messages.append(msg)
 
     try:
-        for email_addr, name in recipients:
-            html_content = build_invitation_html(plan, name)
-            text_content = (
-                f"Sweet Date — Invitation romantique\n\n"
-                f"Bonjour {name} !\n"
-                f"{user.username} vous invite à un rendez-vous le {plan.date} à {plan.time or 'heure à confirmer'}.\n"
-                f"Lieu : {plan.location or 'Surprise'}\n"
-                f"Niveau d'excitation : {plan.excitement}%\n"
-            )
-            msg = EmailMultiAlternatives(
-                subject=subject,
-                body=text_content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[email_addr],
-            )
-            msg.attach_alternative(html_content, "text/html")
-            msg.send()
-
-        plan.email_sent = True
-        plan.email_sent_at = timezone.now()
-        plan.save(update_fields=["email_sent", "email_sent_at"])
-        return True
-
-    except Exception as exc:
-        print(f"[EMAIL ERROR] {exc}")
+        with get_connection() as connection:
+            connection.send_messages(messages)
+    except Exception:
+        logger.exception("Échec de l'envoi de l'invitation pour le plan %s", plan.pk)
         return False
+
+    plan.email_sent = True
+    plan.email_sent_at = timezone.now()
+    plan.save(update_fields=["email_sent", "email_sent_at"])
+    return True
