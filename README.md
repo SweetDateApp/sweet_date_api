@@ -1,5 +1,7 @@
 # Sweet Date — Backend Django + PostgreSQL
 
+[![CI](https://github.com/SweetDateApp/sweet_date_api/actions/workflows/ci.yml/badge.svg?branch=preprod)](https://github.com/SweetDateApp/sweet_date_api/actions/workflows/ci.yml) [![CD preprod](https://github.com/SweetDateApp/sweet_date_api/actions/workflows/cd.yml/badge.svg?branch=preprod)](https://github.com/SweetDateApp/sweet_date_api/actions/workflows/cd.yml?query=branch%3Apreprod) [![CD prod](https://github.com/SweetDateApp/sweet_date_api/actions/workflows/cd.yml/badge.svg?branch=prod)](https://github.com/SweetDateApp/sweet_date_api/actions/workflows/cd.yml?query=branch%3Aprod)
+
 ## Stack
 - **Django 5.2 LTS** + **Django REST Framework** (Python 3.12+)
 - **PostgreSQL** (base de données)
