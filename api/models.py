@@ -1,5 +1,15 @@
+import uuid
+from pathlib import Path
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.core.validators import MaxValueValidator
 from django.db import models
+
+
+def avatar_upload_to(instance, filename):
+    """Nom de fichier unique : évite les collisions et les caractères spéciaux."""
+    ext = Path(filename).suffix.lower() or ".png"
+    return f"avatars/{instance.pk or 'new'}-{uuid.uuid4().hex[:12]}{ext}"
 
 
 class UserManager(BaseUserManager):
@@ -28,7 +38,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     username        = models.CharField(max_length=150, unique=True)
     email_partner1  = models.EmailField(help_text="Email du 1er partenaire")
     email_partner2  = models.EmailField(help_text="Email du 2eme partenaire")
-    avatar          = models.ImageField(upload_to="avatars/", null=True, blank=True)
+    avatar          = models.ImageField(upload_to=avatar_upload_to, null=True, blank=True)
     is_active       = models.BooleanField(default=True)
     is_staff        = models.BooleanField(default=False)
     created_at      = models.DateTimeField(auto_now_add=True)
@@ -59,7 +69,7 @@ class DatePlan(models.Model):
     date        = models.DateField()
     time        = models.TimeField(null=True, blank=True)
     location    = models.CharField(max_length=255, blank=True)
-    excitement  = models.PositiveSmallIntegerField(default=0)
+    excitement  = models.PositiveSmallIntegerField(default=0, validators=[MaxValueValidator(100)])
     email_sent  = models.BooleanField(default=False)
     email_sent_at = models.DateTimeField(null=True, blank=True)
     created_at  = models.DateTimeField(auto_now_add=True)
